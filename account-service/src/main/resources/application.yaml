@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: account-service
+
+service:
+    port: 8095
