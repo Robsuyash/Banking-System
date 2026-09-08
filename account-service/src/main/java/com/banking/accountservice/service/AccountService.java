@@ -23,7 +23,7 @@ public class AccountService {
 
     public AccountResponse createAccount(CreateAccountRequest request) {
         log.info("Creating account for : {}", request.getEmail());
-        if (accountRepository.existByEmail(request.getEmail())) {
+        if (accountRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Account already exists for this email: " + request.getEmail());
         }
         Account account = new Account();
@@ -32,7 +32,7 @@ public class AccountService {
                 account.setPhone(request.getPhone());
                 account.setAccountType(request.getAccountType());
                 account.setStatus(AccountStatus.ACTIVE);
-                account.setBalance(request.getInitialDeposite());
+                account.setBalance(request.getInitialDeposit());
                 account.setAccountNumber(generateAccountNumber());
                 account.setDailyTransactionLimit(
                         request.getAccountType() == AccountType.SAVINGS
@@ -54,7 +54,7 @@ public class AccountService {
         do {
             long num = secureRandom.nextLong(1_000_000_000_000L);
             accno =String.format("%012d",num);
-        }while(accountRepository.existByAccountNumber(accno));
+        }while(accountRepository.existsByAccountNumber(accno));
 
         return accno;
     }

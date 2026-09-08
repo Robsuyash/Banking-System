@@ -1,0 +1,46 @@
+package com.banking.transactionservice.controller;
+
+
+import com.banking.transactionservice.dto.TransactionResponse;
+import com.banking.transactionservice.dto.TransferRequest;
+import com.banking.transactionservice.service.TransactionService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@Slf4j
+@RequiredArgsConstructor
+@RequestMapping("/api/v1/transactions")
+public class TransactionController {
+    public TransactionService transactionService;
+
+    @PostMapping("/transfer")
+    public ResponseEntity<TransactionResponse> transfer(@Valid @RequestBody TransferRequest request){
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(transactionService.transfer(request));
+    }
+
+    @GetMapping("/{TransactionId}")
+    public  ResponseEntity<TransactionResponse> getTransaction(@PathVariable String transactionId){
+        return ResponseEntity.ok(transactionService.getTransaction(transactionId));
+    }
+
+    @GetMapping("/account/{accountNumber}")
+    public  ResponseEntity<List<TransactionResponse>> getTransactionHistory(@PathVariable String accountNumber){
+        return ResponseEntity.ok(transactionService.getTransactionHistory(accountNumber));
+    }
+
+    @PostMapping("/{transactionId}/verify")
+    public ResponseEntity<TransactionResponse>verifyOTP(@PathVariable String transactionId,@RequestBody String otp){
+        log.info("OTP verificationrequest- transaction: {}",transactionId);
+        return ResponseEntity.ok(transactionService.verifyOTP(transactionId,otp));
+    }
+
+
+}

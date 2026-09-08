@@ -19,7 +19,7 @@ public class CreateAccountRequest {
     private String accountHolderName;
 
     @NotBlank(message = "Account holder name is required")
-    @Email(message = "Invalid email formate")
+    @Email(message = "Invalid email format")
     private String email;
 
     @NotBlank(message = "Account holder phone number is required")
@@ -28,8 +28,8 @@ public class CreateAccountRequest {
     @NotBlank(message = "Account type is required")
     private AccountType accountType;
 
-    @NotBlank(message = "Inital deposite required")
-    @Positive(message = "Initial deposite must be positive")
-    private BigDecimal initialDeposite;
+    @NotBlank(message = "Initial deposit required")
+    @Positive(message = "Initial deposit must be positive")
+    private BigDecimal initialDeposit;
 
 }

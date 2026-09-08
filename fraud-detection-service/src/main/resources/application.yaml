@@ -1,5 +1,14 @@
 spring:
   application:
     name: fraud-detection-service
+
 server:
-    port: 8091
+  port: 8091
+
+account:
+  service:
+    url: http://localhost:8095
+
+fraud.max-transactions-per-min: 5
+fraud.suspicious-amount-multiplier: 5
+fraud.max-balance-percentage: 0.90
