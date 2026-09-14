@@ -1,7 +1,7 @@
 package com.banking.accountservice.entity;
 
 /*
-Acoount LifeCycle Status
+Account LifeCycle Status
  */
 public enum AccountStatus {
     ACTIVE,

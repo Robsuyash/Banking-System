@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -27,7 +28,7 @@ public class FraudDetectionService {
     private final RedisTemplate<String, String> redisTemplate;
 
     @Value("${fraud.max-transactions-per-min}")
-    private int maxTransacitonPerMin;
+    private int maxTransactionPerMin;
 
 
     @Value("${fraud.suspicious-amount-multiplier}")
@@ -41,7 +42,7 @@ public class FraudDetectionService {
         String accountNumber = (String) payload.get("senderAccountNumber");
         BigDecimal amount = new BigDecimal(payload.get("amount").toString());
 
-        // Fetech real balance from account service
+        // Fetch real balance from account service
         BigDecimal senderBalance = accountServiceClient.getBalance(accountNumber);
 
         log.info("Checking transaction: {} account: {} balance: {}", transactionId, accountNumber, senderBalance);
@@ -54,7 +55,7 @@ public class FraudDetectionService {
             //verification required now coz sus
 
             Map<String, Object> verificationEvent = new HashMap<>();
-            verificationEvent.put("transactinId", transactionId);
+            verificationEvent.put("transactionId", transactionId);
             verificationEvent.put("amount", amount);
             verificationEvent.put("accountNumber", accountNumber);
             verificationEvent.put("reason", result.getReason());
@@ -63,10 +64,10 @@ public class FraudDetectionService {
         } else {
             log.info("Transaction clean");
             Map<String, Object> transactionCleanEvent = new HashMap<>();
-            transactionCleanEvent.put("transactinId", transactionId);
+            transactionCleanEvent.put("transactionId", transactionId);
             transactionCleanEvent.put("isFraud", false);
             transactionCleanEvent.put("reason", null);
-            kafkaTemplate.send(VERIFICATION_REQUIRED_TOPIC, transactionId, transactionCleanEvent);
+            kafkaTemplate.send(FRAUD_CHECK_CLEAN_RESULT_TOPIC, transactionId, transactionCleanEvent);
 
         }
 
@@ -89,7 +90,7 @@ public class FraudDetectionService {
         if (senderBalance.compareTo(BigDecimal.ZERO) > 0
                 && isBalanceCheckFailed(senderBalance, amount)) {
             return new FraudChecksResult(true,
-                    "Transaction exceed 90% of account balance");
+                    "Transaction exceeds 90% of account balance");
         }
 
         return new FraudChecksResult(false, null);
@@ -97,7 +98,7 @@ public class FraudDetectionService {
 
 
     private boolean isVelocityExceeded(String accountNumber) {
-        String key = "fraud:velocity" + accountNumber;
+        String key = "fraud:velocity:" + accountNumber;
         Long count = redisTemplate.opsForValue().increment(key);
         /*
         so basically ham yaha pr check kr rahe h redis ke help se
@@ -108,13 +109,13 @@ public class FraudDetectionService {
             redisTemplate.expire(key, 60, TimeUnit.SECONDS);
         }
 
-        log.info("velocity cehck account: {} , count: {}", accountNumber, count);
+        log.info("velocity check account: {} , count: {}", accountNumber, count);
 
-        return count != null && count > maxTransacitonPerMin;
+        return count != null && count > maxTransactionPerMin;
     }
 
     private boolean isAmountSuspicious(String accountNumber, BigDecimal amount) {
-        String avgKey = "fraud:avg_amount" + accountNumber;
+        String avgKey = "fraud:avg_amount:" + accountNumber;
         String avgStr = redisTemplate.opsForValue().get(avgKey);
         if (avgStr == null) {
             redisTemplate.opsForValue().set(avgKey, amount.toString());

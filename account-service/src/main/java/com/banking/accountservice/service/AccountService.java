@@ -49,14 +49,14 @@ public class AccountService {
     //Generate 12 digit unique acc no
     private String generateAccountNumber() {
 
-        String accno;
+        String accountNumber;
 
         do {
             long num = secureRandom.nextLong(1_000_000_000_000L);
-            accno =String.format("%012d",num);
-        }while(accountRepository.existsByAccountNumber(accno));
+            accountNumber =String.format("%012d",num);
+        }while(accountRepository.existsByAccountNumber(accountNumber));
 
-        return accno;
+        return accountNumber;
     }
 
     private AccountResponse mapToResponse(Account account) {
