@@ -1,6 +1,73 @@
 spring:
   application:
     name: api-gateway
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cloud:
+    gateway:
+      routes:
+        # Account Service Routes - Port 8095
+        - id: account-service
+          uri: http://localhost:8095
+          predicates:
+            - Path=/api/v1/accounts/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+
+        # Transaction Service Routes - Port 8094
+        - id: transaction-service
+          uri: http://localhost:8094
+          predicates:
+            - Path=/api/v1/transactions/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+
+        # Payment Service Routes - Port 8093
+        - id: payment-service
+          uri: http://localhost:8093
+          predicates:
+            - Path=/api/v1/payments/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+
+        # Fraud Detection Service Routes - Port 8091
+        - id: fraud-detection-service
+          uri: http://localhost:8091
+          predicates:
+            - Path=/api/fraud/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+
+        # Notification Service Routes - Port 8092
+        - id: notification-service
+          uri: http://localhost:8092
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
 
 server:
   port: 8090
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

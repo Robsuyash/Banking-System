@@ -19,7 +19,7 @@ import java.security.SecureRandom;
 @RequiredArgsConstructor
 public class AccountService {
     private final AccountRepository accountRepository;
-    private static SecureRandom secureRandom;
+    private static final SecureRandom secureRandom = new SecureRandom();
 
     public AccountResponse createAccount(CreateAccountRequest request) {
         log.info("Creating account for : {}", request.getEmail());

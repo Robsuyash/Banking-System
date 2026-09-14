@@ -1,6 +1,7 @@
 package com.banking.paymentservice.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -16,7 +17,7 @@ public class CreatePaymentRequest {
     @NotBlank(message = "Account Number is required")
     private String accountNumber;
 
-    @NotBlank(message = "Amount is required")
+    @NotNull(message = "Amount is required")
     @Positive(message = "Amount must be +ve")
     private BigDecimal amount;
 
