@@ -23,14 +23,14 @@ public class AccountService {
 
     public AccountResponse createAccount(CreateAccountRequest request) {
         log.info("====================================================");
-        log.info("🏦 ACCOUNT SERVICE - CREATE ACCOUNT REQUEST");
+        log.info("[ACCOUNT] ACCOUNT SERVICE - CREATE ACCOUNT REQUEST");
         log.info("Email: {}", request.getEmail());
         log.info("Account Type: {}", request.getAccountType());
         log.info("Initial Deposit: {}", request.getInitialDeposit());
         log.info("====================================================");
 
         if (accountRepository.existsByEmail(request.getEmail())) {
-            log.error("❌ Account creation failed - Email already exists: {}", request.getEmail());
+            log.error("[FAILED] Account creation failed - Email already exists: {}", request.getEmail());
             throw new RuntimeException("Account already exists for this email: " + request.getEmail());
         }
 
@@ -48,7 +48,7 @@ public class AccountService {
                                                                     :new BigDecimal("500000"));
         Account savedAccount = accountRepository.save(account);
 
-        log.info("✅ Account created successfully");
+        log.info("[SUCCESS] Account created successfully");
         log.info("Account Number: {}", savedAccount.getAccountNumber());
         log.info("Balance: {}", savedAccount.getBalance());
         log.info("Daily Limit: {}", savedAccount.getDailyTransactionLimit());
@@ -108,7 +108,7 @@ public class AccountService {
      */
     public void blockAccount(String accountNumber) {
         log.warn("====================================================");
-        log.warn("🚨 ACCOUNT SERVICE - BLOCK ACCOUNT");
+        log.warn("[ALERT] ACCOUNT SERVICE - BLOCK ACCOUNT");
         log.warn("Account Number: {}", accountNumber);
         log.warn("====================================================");
 
@@ -117,7 +117,7 @@ public class AccountService {
         account.setStatus(AccountStatus.BLOCKED);
         accountRepository.save(account);
 
-        log.warn("❌ Account BLOCKED successfully: {}", accountNumber);
+        log.warn("[FAILED] Account BLOCKED successfully: {}", accountNumber);
         log.warn("====================================================");
     }
 
@@ -127,7 +127,7 @@ public class AccountService {
   */
     public void deductBalance(String accountNumber, BigDecimal amount) {
         log.info("====================================================");
-        log.info("💸 ACCOUNT SERVICE - DEDUCT BALANCE (SAGA STEP 1)");
+        log.info("[DEDUCT] ACCOUNT SERVICE - DEDUCT BALANCE (SAGA STEP 1)");
         log.info("Account: {}", accountNumber);
         log.info("Amount to Deduct: {}", amount);
         log.info("====================================================");
@@ -139,11 +139,11 @@ public class AccountService {
         log.info("Account Status: {}", account.getStatus());
 
         if(account.getStatus()!=AccountStatus.ACTIVE){
-            log.error("❌ Deduction failed - Account is not ACTIVE: {}", account.getStatus());
+            log.error("[FAILED] Deduction failed - Account is not ACTIVE: {}", account.getStatus());
             throw new RuntimeException("Account is not Active");
         }
         if(account.getBalance().compareTo(amount)<0){
-            log.error("❌ Deduction failed - Insufficient funds. Required: {}, Available: {}", amount, account.getBalance());
+            log.error("[FAILED] Deduction failed - Insufficient funds. Required: {}, Available: {}", amount, account.getBalance());
             throw new RuntimeException("Insufficient Funds");
         }
 
@@ -151,7 +151,7 @@ public class AccountService {
         account.setBalance(account.getBalance().subtract(amount));
         accountRepository.save(account);
 
-        log.info("✅ Balance deducted successfully");
+        log.info("[SUCCESS] Balance deducted successfully");
         log.info("Previous Balance: {}", oldBalance);
         log.info("New Balance: {}", account.getBalance());
         log.info("====================================================");
@@ -163,7 +163,7 @@ public class AccountService {
  */
     public void creditBalance(String accountNumber, BigDecimal amount) {
         log.info("====================================================");
-        log.info("💰 ACCOUNT SERVICE - CREDIT BALANCE (SAGA COMPENSATION/COMPLETION)");
+        log.info("[BALANCE] ACCOUNT SERVICE - CREDIT BALANCE (SAGA COMPENSATION/COMPLETION)");
         log.info("Account: {}", accountNumber);
         log.info("Amount to Credit: {}", amount);
         log.info("====================================================");
@@ -175,7 +175,7 @@ public class AccountService {
         account.setBalance(account.getBalance().add(amount));
         accountRepository.save(account);
 
-        log.info("✅ Balance credited successfully");
+        log.info("[SUCCESS] Balance credited successfully");
         log.info("Previous Balance: {}", oldBalance);
         log.info("New Balance: {}", account.getBalance());
         log.info("====================================================");

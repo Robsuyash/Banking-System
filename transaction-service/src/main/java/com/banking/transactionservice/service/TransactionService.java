@@ -45,7 +45,7 @@ public class TransactionService {
      */
     public TransactionResponse transfer(@Valid TransferRequest request) {
         log.info("====================================================");
-        log.info("🚀 TRANSACTION SERVICE - SAGA START");
+        log.info("[START] TRANSACTION SERVICE - SAGA START");
         log.info("Transaction Type: TRANSFER");
         log.info("Sender: {}", request.getSenderAccountNumber());
         log.info("Receiver: {}", request.getReceiverAccountNumber());
@@ -54,12 +54,12 @@ public class TransactionService {
         log.info("====================================================");
 
         //SAGA step 1: deduct from sender
-        log.info("📤 SAGA STEP 1: Calling Account Service to deduct balance");
+        log.info("[PUBLISH] SAGA STEP 1: Calling Account Service to deduct balance");
         try {
             accountServiceClient.deductBalance(request.getSenderAccountNumber(), request.getAmount());
-            log.info("✅ SAGA STEP 1 COMPLETED: Balance deducted from sender");
+            log.info("[SUCCESS] SAGA STEP 1 COMPLETED: Balance deducted from sender");
         } catch (Exception e) {
-            log.error("❌ SAGA STEP 1 FAILED: Could not deduct balance - {}", e.getMessage());
+            log.error("[FAILED] SAGA STEP 1 FAILED: Could not deduct balance - {}", e.getMessage());
             throw e;
         }
 
@@ -73,13 +73,13 @@ public class TransactionService {
         transaction.setReferenceNumber(UUID.randomUUID().toString());
 
         Transaction savedTransaction = transactionRepository.save(transaction);
-        log.info("💾 Transaction saved with status PROCESSING");
+        log.info("[SAVE] Transaction saved with status PROCESSING");
         log.info("Transaction ID: {}", savedTransaction.getId());
         log.info("Reference Number: {}", savedTransaction.getReferenceNumber());
 
 
         //SAGA step 2 publish for fraud check
-        log.info("📤 SAGA STEP 2: Publishing transaction.initiated event to Kafka");
+        log.info("[PUBLISH] SAGA STEP 2: Publishing transaction.initiated event to Kafka");
         TransactionInitiatedEvent event = new TransactionInitiatedEvent(
                 savedTransaction.getId(),
                 savedTransaction.getSenderAccountNumber(),
@@ -88,7 +88,7 @@ public class TransactionService {
                 savedTransaction.getDescription()
         );
         kafkaTemplate.send(TRANSACTION_INITIATED_TOPIC, savedTransaction.getId(), event);
-        log.info("✅ SAGA STEP 2 COMPLETED: Event published to topic '{}'", TRANSACTION_INITIATED_TOPIC);
+        log.info("[SUCCESS] SAGA STEP 2 COMPLETED: Event published to topic '{}'", TRANSACTION_INITIATED_TOPIC);
         log.info("====================================================");
 
         return mapToResponse(savedTransaction);
@@ -126,7 +126,7 @@ public class TransactionService {
 
     public TransactionResponse verifyOTP(String transactionId, String otp) {
         log.info("====================================================");
-        log.info("🔐 TRANSACTION SERVICE - OTP VERIFICATION");
+        log.info("[OTP] TRANSACTION SERVICE - OTP VERIFICATION");
         log.info("Transaction ID: {}", transactionId);
         log.info("====================================================");
 
@@ -139,8 +139,8 @@ public class TransactionService {
 
         if (storedOtp == null) {
             //OTP EXPIRED
-            log.warn("❌ OTP EXPIRED for transaction: {}", transactionId);
-            log.warn("🔄 Initiating SAGA COMPENSATION");
+            log.warn("[FAILED] OTP EXPIRED for transaction: {}", transactionId);
+            log.warn("[COMPENSATION] Initiating SAGA COMPENSATION");
             compensateTransaction(transaction, "OTP Expired - transaction cancelled and amount refunded");
             return mapToResponse(transaction);
         }
@@ -148,8 +148,8 @@ public class TransactionService {
         if (!storedOtp.equals(otp)) {
             //BLOCK ACCOUNT AND REFUND WHEN WRONG OTP ENTERED
             log.warn("====================================================");
-            log.warn("❌ WRONG OTP ENTERED - Transaction: {}", transactionId);
-            log.warn("🚨 Blocking account and initiating SAGA COMPENSATION");
+            log.warn("[FAILED] WRONG OTP ENTERED - Transaction: {}", transactionId);
+            log.warn("[ALERT] Blocking account and initiating SAGA COMPENSATION");
             log.warn("====================================================");
             redisTemplate.delete(otpKey);
             blockAccountAndCompensate(transaction, "Wrong OTP - transaction cancelled, " + "account blocked");
@@ -158,8 +158,8 @@ public class TransactionService {
         }
 
         // OTP CORRECT - complete transaction
-        log.info("✅ OTP VERIFIED SUCCESSFULLY");
-        log.info("📤 Proceeding to complete transaction: {}", transactionId);
+        log.info("[SUCCESS] OTP VERIFIED SUCCESSFULLY");
+        log.info("[PUBLISH] Proceeding to complete transaction: {}", transactionId);
         log.info("====================================================");
         redisTemplate.delete(otpKey);
         completeTransaction(transaction);
@@ -170,7 +170,7 @@ public class TransactionService {
 
     private void completeTransaction(Transaction transaction) {
         log.info("====================================================");
-        log.info("✅ TRANSACTION SERVICE - COMPLETING TRANSACTION");
+        log.info("[SUCCESS] TRANSACTION SERVICE - COMPLETING TRANSACTION");
         log.info("Transaction ID: {}", transaction.getId());
         log.info("====================================================");
 
@@ -178,7 +178,7 @@ public class TransactionService {
         transaction.setCompletedAt(LocalDateTime.now());
         transactionRepository.save(transaction);
 
-        log.info("💾 Transaction status updated to COMPLETED");
+        log.info("[SAVE] Transaction status updated to COMPLETED");
 
         TransactionCompletedEvent completedEvent = new TransactionCompletedEvent(
                 transaction.getId(),
@@ -188,15 +188,15 @@ public class TransactionService {
                 transaction.getDescription()
         );
         kafkaTemplate.send(TRANSACTION_COMPLETED_TOPIC,transaction.getId(),completedEvent);
-        log.info("📤 Published transaction.completed event to Kafka");
-        log.info("✅ SAGA COMPLETED SUCCESSFULLY");
+        log.info("[PUBLISH] Published transaction.completed event to Kafka");
+        log.info("[SUCCESS] SAGA COMPLETED SUCCESSFULLY");
         log.info("====================================================");
 
     }
 
     private void blockAccountAndCompensate(Transaction transaction, String reason) {
         log.warn("====================================================");
-        log.warn("🚨 SAGA COMPENSATION - BLOCKING ACCOUNT");
+        log.warn("[ALERT] SAGA COMPENSATION - BLOCKING ACCOUNT");
         log.warn("Account: {}", transaction.getSenderAccountNumber());
         log.warn("Reason: {}", reason);
         log.warn("====================================================");
@@ -208,7 +208,7 @@ public class TransactionService {
         fraudEvent.put("reason",reason);
 
         kafkaTemplate.send(FRAUD_DETECTED_TOPIC,transaction.getSenderAccountNumber(),fraudEvent);
-        log.warn("📤 Published fraud.detected event to Kafka");
+        log.warn("[PUBLISH] Published fraud.detected event to Kafka");
 
         //SAGA COMPENSATION - refund sender
         compensateTransaction(transaction,reason);
@@ -216,7 +216,7 @@ public class TransactionService {
 
     private void compensateTransaction(Transaction transaction, String reason) {
         log.warn("====================================================");
-        log.warn("🔄 SAGA COMPENSATION - REFUNDING AMOUNT");
+        log.warn("[COMPENSATION] SAGA COMPENSATION - REFUNDING AMOUNT");
         log.warn("Transaction ID: {}", transaction.getId());
         log.warn("Account: {}", transaction.getSenderAccountNumber());
         log.warn("Amount: {}", transaction.getAmount());
@@ -226,15 +226,15 @@ public class TransactionService {
         //CREDIT MONEY BACK TO SENDER SYNCHRONOUSLY
         try {
             accountServiceClient.creditBalance(transaction.getSenderAccountNumber(),transaction.getAmount());
-            log.warn("✅ Amount refunded successfully to sender");
+            log.warn("[SUCCESS] Amount refunded successfully to sender");
         } catch (Exception e) {
-            log.error("❌ COMPENSATION FAILED: Could not refund amount - {}", e.getMessage());
+            log.error("[FAILED] COMPENSATION FAILED: Could not refund amount - {}", e.getMessage());
         }
 
         transaction.setStatus(TransactionStatus.FLAGGED);
         transaction.setFailureReason(reason+" - SAGA Compensation completed and amount refunded");
         transactionRepository.save(transaction);
-        log.warn("💾 Transaction marked as FLAGGED");
+        log.warn("[SAVE] Transaction marked as FLAGGED");
 
         //PUBLISH refund event - NOTIFICATION service will alert user
 
@@ -245,8 +245,8 @@ public class TransactionService {
         refundEvent.put("amount", transaction.getAmount());
 
         kafkaTemplate.send(TRANSACTION_REFUNDED_TOPIC,transaction.getId(),refundEvent);
-        log.warn("📤 Published transaction.refunded event to Kafka");
-        log.warn("✅ SAGA COMPENSATION COMPLETED");
+        log.warn("[PUBLISH] Published transaction.refunded event to Kafka");
+        log.warn("[SUCCESS] SAGA COMPENSATION COMPLETED");
         log.warn("====================================================");
 
 
@@ -255,7 +255,7 @@ public class TransactionService {
 
     public void processCleanResult(String transactionId) {
         log.info("====================================================");
-        log.info("✅ TRANSACTION SERVICE - FRAUD CHECK CLEAN");
+        log.info("[SUCCESS] TRANSACTION SERVICE - FRAUD CHECK CLEAN");
         log.info("Transaction ID: {}", transactionId);
         log.info("====================================================");
 
@@ -269,7 +269,7 @@ public class TransactionService {
             return;
         }
 
-        log.info("✅ No fraud detected - Completing transaction");
+        log.info("[SUCCESS] No fraud detected - Completing transaction");
         completeTransaction(transaction);
     }
 }

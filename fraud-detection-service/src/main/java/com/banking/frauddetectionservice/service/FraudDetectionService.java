@@ -43,23 +43,23 @@ public class FraudDetectionService {
         BigDecimal amount = new BigDecimal(payload.get("amount").toString());
 
         log.info("====================================================");
-        log.info("🔍 FRAUD DETECTION SERVICE - ANALYZING TRANSACTION");
+        log.info("[CHECK] FRAUD DETECTION SERVICE - ANALYZING TRANSACTION");
         log.info("Transaction ID: {}", transactionId);
         log.info("Account: {}", accountNumber);
         log.info("Amount: {}", amount);
         log.info("====================================================");
 
         // Fetch real balance from account service
-        log.info("📤 Fetching current balance from Account Service");
+        log.info("[PUBLISH] Fetching current balance from Account Service");
         BigDecimal senderBalance = accountServiceClient.getBalance(accountNumber);
-        log.info("✅ Current Balance: {}", senderBalance);
+        log.info("[SUCCESS] Current Balance: {}", senderBalance);
 
-        log.info("🔍 Running fraud detection checks...");
+        log.info("[CHECK] Running fraud detection checks...");
         FraudChecksResult result = performFraudChecks(accountNumber, amount, senderBalance);
 
         if (result.isFraud()) {
             log.warn("====================================================");
-            log.warn("🚨 SUSPICIOUS ACTIVITY DETECTED");
+            log.warn("[ALERT] SUSPICIOUS ACTIVITY DETECTED");
             log.warn("Account: {}", accountNumber);
             log.warn("Reason: {}", result.getReason());
             log.warn("Action: OTP Verification Required");
@@ -74,11 +74,11 @@ public class FraudDetectionService {
             verificationEvent.put("reason", result.getReason());
 
             kafkaTemplate.send(VERIFICATION_REQUIRED_TOPIC, transactionId, verificationEvent);
-            log.warn("📤 Published verification_required event to Kafka");
+            log.warn("[PUBLISH] Published verification_required event to Kafka");
             log.warn("====================================================");
         } else {
             log.info("====================================================");
-            log.info("✅ TRANSACTION CLEAN - No Fraud Detected");
+            log.info("[SUCCESS] TRANSACTION CLEAN - No Fraud Detected");
             log.info("Transaction ID: {}", transactionId);
             log.info("====================================================");
 
@@ -88,7 +88,7 @@ public class FraudDetectionService {
             transactionCleanEvent.put("reason", null);
 
             kafkaTemplate.send(FRAUD_CHECK_CLEAN_RESULT_TOPIC, transactionId, transactionCleanEvent);
-            log.info("📤 Published fraud_check_clean event to Kafka");
+            log.info("[PUBLISH] Published fraud_check_clean event to Kafka");
             log.info("====================================================");
 
         }
@@ -96,35 +96,35 @@ public class FraudDetectionService {
     }
 
     private FraudChecksResult performFraudChecks(String accountNumber, BigDecimal amount, BigDecimal senderBalance) {
-        log.info("🔍 Fraud Check #1: Velocity Check (Max {} transactions per minute)", maxTransactionPerMin);
+        log.info("[CHECK] Fraud Check #1: Velocity Check (Max {} transactions per minute)", maxTransactionPerMin);
         // Pattern 1: Velocity Check
         if (isVelocityExceeded(accountNumber)) {
-            log.warn("❌ FAILED: Velocity limit exceeded");
+            log.warn("[FAILED] FAILED: Velocity limit exceeded");
             return new FraudChecksResult(
                     true, "Velocity limit exceeded - Too many transactions in 60 seconds");
         }
-        log.info("✅ PASSED: Velocity check");
+        log.info("[SUCCESS] PASSED: Velocity check");
 
-        log.info("🔍 Fraud Check #2: Amount Check (Max {}x average)", suspiciousAmountMultiplier);
+        log.info("[CHECK] Fraud Check #2: Amount Check (Max {}x average)", suspiciousAmountMultiplier);
         // Pattern 2: Amount check
         if (isAmountSuspicious(accountNumber, amount)) {
-            log.warn("❌ FAILED: Unusual transaction amount");
+            log.warn("[FAILED] FAILED: Unusual transaction amount");
             return new FraudChecksResult(true,
                     "Unusual transaction amount - exceeds 3x your average");
         }
-        log.info("✅ PASSED: Amount check");
+        log.info("[SUCCESS] PASSED: Amount check");
 
-        log.info("🔍 Fraud Check #3: Balance Percentage Check (Max {}% of balance)", maxBalancePercentage * 100);
+        log.info("[CHECK] Fraud Check #3: Balance Percentage Check (Max {}% of balance)", maxBalancePercentage * 100);
         // Pattern 3: Balance Check
         if (senderBalance.compareTo(BigDecimal.ZERO) > 0
                 && isBalanceCheckFailed(senderBalance, amount)) {
-            log.warn("❌ FAILED: Transaction exceeds balance threshold");
+            log.warn("[FAILED] FAILED: Transaction exceeds balance threshold");
             return new FraudChecksResult(true,
                     "Transaction exceeds 90% of account balance");
         }
-        log.info("✅ PASSED: Balance check");
+        log.info("[SUCCESS] PASSED: Balance check");
 
-        log.info("✅ All fraud checks passed");
+        log.info("[SUCCESS] All fraud checks passed");
         return new FraudChecksResult(false, null);
     }
 
