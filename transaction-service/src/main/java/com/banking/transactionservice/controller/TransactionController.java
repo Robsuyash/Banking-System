@@ -18,7 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/transactions")
 public class TransactionController {
-    public TransactionService transactionService;
+    private final TransactionService transactionService;
 
     @PostMapping("/transfer")
     public ResponseEntity<TransactionResponse> transfer(@Valid @RequestBody TransferRequest request){
@@ -37,7 +37,7 @@ public class TransactionController {
     }
 
     @PostMapping("/{transactionId}/verify")
-    public ResponseEntity<TransactionResponse>verifyOTP(@PathVariable String transactionId,@RequestBody String otp){
+    public ResponseEntity<TransactionResponse>verifyOTP(@PathVariable String transactionId,@RequestParam String otp){
         log.info("OTP verificationrequest- transaction: {}",transactionId);
         return ResponseEntity.ok(transactionService.verifyOTP(transactionId,otp));
     }

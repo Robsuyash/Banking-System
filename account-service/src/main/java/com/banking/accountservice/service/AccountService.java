@@ -22,10 +22,18 @@ public class AccountService {
     private static final SecureRandom secureRandom = new SecureRandom();
 
     public AccountResponse createAccount(CreateAccountRequest request) {
-        log.info("Creating account for : {}", request.getEmail());
+        log.info("====================================================");
+        log.info("🏦 ACCOUNT SERVICE - CREATE ACCOUNT REQUEST");
+        log.info("Email: {}", request.getEmail());
+        log.info("Account Type: {}", request.getAccountType());
+        log.info("Initial Deposit: {}", request.getInitialDeposit());
+        log.info("====================================================");
+
         if (accountRepository.existsByEmail(request.getEmail())) {
+            log.error("❌ Account creation failed - Email already exists: {}", request.getEmail());
             throw new RuntimeException("Account already exists for this email: " + request.getEmail());
         }
+
         Account account = new Account();
                 account.setAccountHolderName(request.getAccountHolderName());
                 account.setEmail(request.getEmail());
@@ -39,7 +47,12 @@ public class AccountService {
                                 ? new BigDecimal("100000")
                                                                     :new BigDecimal("500000"));
         Account savedAccount = accountRepository.save(account);
-        log.info("Account created: {}", savedAccount.getAccountNumber());
+
+        log.info("✅ Account created successfully");
+        log.info("Account Number: {}", savedAccount.getAccountNumber());
+        log.info("Balance: {}", savedAccount.getBalance());
+        log.info("Daily Limit: {}", savedAccount.getDailyTransactionLimit());
+        log.info("====================================================");
 
         return mapToResponse(savedAccount);
     }
@@ -75,16 +88,18 @@ public class AccountService {
         }
 
     public AccountResponse getAccount(String accountNumber) {
+        log.info("[ACCOUNT SERVICE] GET ACCOUNT: {}", accountNumber);
         Account account = accountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(()->new RuntimeException("Account not found"));
-
+        log.info("[SUCCESS] Account found - Balance: {}, Status: {}", account.getBalance(), account.getStatus());
         return mapToResponse(account);
     }
 
     public @Nullable BigDecimal getBalance(String accountNumber) {
+        log.info("[ACCOUNT SERVICE] GET BALANCE: {}", accountNumber);
         Account account = accountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(()->new RuntimeException("Account not found"));
-
+        log.info("[SUCCESS] Current Balance: {}", account.getBalance());
         return account.getBalance();
     }
 
@@ -92,12 +107,18 @@ public class AccountService {
     Block account -- called by Fraud detection service via kafka
      */
     public void blockAccount(String accountNumber) {
-        log.info("Blocking account: {}",accountNumber);
+        log.warn("====================================================");
+        log.warn("🚨 ACCOUNT SERVICE - BLOCK ACCOUNT");
+        log.warn("Account Number: {}", accountNumber);
+        log.warn("====================================================");
+
         Account account = accountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(()->new RuntimeException("Account not found"));
         account.setStatus(AccountStatus.BLOCKED);
         accountRepository.save(account);
-        log.info("Account Blocked: {}",accountNumber);
+
+        log.warn("❌ Account BLOCKED successfully: {}", accountNumber);
+        log.warn("====================================================");
     }
 
     /*
@@ -105,18 +126,35 @@ public class AccountService {
     deduct Balance -- called by transaction service via kafka
   */
     public void deductBalance(String accountNumber, BigDecimal amount) {
-        log.info("Deducting amount from account: {}",accountNumber);
+        log.info("====================================================");
+        log.info("💸 ACCOUNT SERVICE - DEDUCT BALANCE (SAGA STEP 1)");
+        log.info("Account: {}", accountNumber);
+        log.info("Amount to Deduct: {}", amount);
+        log.info("====================================================");
+
         Account account = accountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(()->new RuntimeException("Account not found"));
+
+        log.info("Current Balance: {}", account.getBalance());
+        log.info("Account Status: {}", account.getStatus());
+
         if(account.getStatus()!=AccountStatus.ACTIVE){
+            log.error("❌ Deduction failed - Account is not ACTIVE: {}", account.getStatus());
             throw new RuntimeException("Account is not Active");
         }
         if(account.getBalance().compareTo(amount)<0){
+            log.error("❌ Deduction failed - Insufficient funds. Required: {}, Available: {}", amount, account.getBalance());
             throw new RuntimeException("Insufficient Funds");
         }
+
+        BigDecimal oldBalance = account.getBalance();
         account.setBalance(account.getBalance().subtract(amount));
         accountRepository.save(account);
-        log.info("Balance Updated, New Balance: {}",account.getBalance());
+
+        log.info("✅ Balance deducted successfully");
+        log.info("Previous Balance: {}", oldBalance);
+        log.info("New Balance: {}", account.getBalance());
+        log.info("====================================================");
     }
 
 
@@ -124,11 +162,22 @@ public class AccountService {
    credit Balance -- called by transaction service via kafka
  */
     public void creditBalance(String accountNumber, BigDecimal amount) {
-        log.info("Crediting amount to account: {}",accountNumber);
+        log.info("====================================================");
+        log.info("💰 ACCOUNT SERVICE - CREDIT BALANCE (SAGA COMPENSATION/COMPLETION)");
+        log.info("Account: {}", accountNumber);
+        log.info("Amount to Credit: {}", amount);
+        log.info("====================================================");
+
         Account account = accountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(()->new RuntimeException("Account not found"));
+
+        BigDecimal oldBalance = account.getBalance();
         account.setBalance(account.getBalance().add(amount));
         accountRepository.save(account);
-        log.info("Balance Updated, New Balance: {}",account.getBalance());
+
+        log.info("✅ Balance credited successfully");
+        log.info("Previous Balance: {}", oldBalance);
+        log.info("New Balance: {}", account.getBalance());
+        log.info("====================================================");
     }
 }

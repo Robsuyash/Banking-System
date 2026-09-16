@@ -18,7 +18,7 @@ public class NotificationService {
             String accountNumber=(String)payload.get("accountNumber");
             String otp=(String)payload.get("otp");
             String transactionId=(String)payload.get("transactionId");
-            String amount=(String)payload.get("amount");
+            String amount = payload.get("amount").toString();
             String reason=(String)payload.get("reason");
 
             sendAlert(accountNumber,"TRANSACTION VERIFICATION REQUIRED", String.format("Suspicious activity detected on your account"
